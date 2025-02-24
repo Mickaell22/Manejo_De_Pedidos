@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BuscadorExcel")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+31446be7eae8e8b9695dfab03fcb471e5ba62029")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4e375fb5959bfbbf7ffbce2b773ccf4e1db3fe58")]
 [assembly: System.Reflection.AssemblyProductAttribute("BuscadorExcel")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BuscadorExcel")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
