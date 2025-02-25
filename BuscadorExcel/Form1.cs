@@ -9,7 +9,7 @@ namespace BuscadorExcel
 {
     public partial class Form1 : Form
     {
-        private string carpetaSeleccionada = string.Empty;
+        private string carpetaSeleccionada = @"C:\Users\ASUS\Desktop\UniversidadZzzz\Facturas";
 
         public Form1()
         {
@@ -45,7 +45,8 @@ namespace BuscadorExcel
                 Location = new Point(170, 15),
                 Size = new Size(400, 30),
                 ReadOnly = true,
-                Name = "txtRuta"
+                Name = "txtRuta",
+                Text = carpetaSeleccionada  // Añade esta línea
             };
 
             // TextBox para búsqueda
@@ -79,13 +80,14 @@ namespace BuscadorExcel
 
             // Configurar columnas del DataGridView
             dgvResultados.Columns.AddRange(new DataGridViewColumn[]
-            {
-                new DataGridViewTextBoxColumn { Name = "Archivo", HeaderText = "Fecha (Archivo)", Width = 100 },
-                new DataGridViewTextBoxColumn { Name = "Cliente", HeaderText = "Cliente", Width = 150 },
-                new DataGridViewTextBoxColumn { Name = "Articulos", HeaderText = "Artículos", Width = 200 },
-                new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Total", Width = 100 },
-                new DataGridViewLinkColumn { Name = "Abrir", HeaderText = "Abrir Excel", Width = 80 }
-            });
+{
+    new DataGridViewTextBoxColumn { Name = "Archivo", HeaderText = "Fecha (Archivo)", Width = 100 },
+    new DataGridViewTextBoxColumn { Name = "Cliente", HeaderText = "Cliente", Width = 150 },
+    new DataGridViewTextBoxColumn { Name = "Articulos", HeaderText = "Artículos", Width = 200 },
+    new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Total", Width = 100 },
+    new DataGridViewTextBoxColumn { Name = "EstadoPago", HeaderText = "Estado de Pago", Width = 100 },
+    new DataGridViewLinkColumn { Name = "Abrir", HeaderText = "Abrir Excel", Width = 80 }
+});
 
             dgvResultados.CellClick += DgvResultados_CellClick!;
 
@@ -119,224 +121,268 @@ namespace BuscadorExcel
 
             var txtBuscar = Controls.Find("txtBuscar", true).FirstOrDefault() as TextBox;
             var dgvResultados = Controls.Find("dgvResultados", true).FirstOrDefault() as DataGridView;
-            
+
             if (txtBuscar != null && dgvResultados != null)
             {
                 BuscarEnArchivos(txtBuscar.Text.ToLower(), dgvResultados);
             }
         }
 
-private void BuscarEnArchivos(string textoBusqueda, DataGridView dgv)
-{
-    dgv.Rows.Clear();
-    if (!Directory.Exists(carpetaSeleccionada)) return;
-
-    // Lista para almacenar todos los resultados antes de ordenarlos
-    var resultados = new List<(string nombreCompleto, string cliente, int articulosActivos, 
-                               string detallesArticulos, decimal total, decimal comision, bool estaPagado)>();
-
-    foreach (var archivo in Directory.GetFiles(carpetaSeleccionada, "*.xlsx"))
-    {
-        try
+        private void BuscarEnArchivos(string textoBusqueda, DataGridView dgv)
         {
-            using (var workbook = new XLWorkbook(new FileStream(archivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)))
+            dgv.Rows.Clear();
+            if (!Directory.Exists(carpetaSeleccionada)) return;
+
+            // Lista para almacenar todos los resultados antes de ordenarlos
+            var resultados = new List<(string nombreCompleto, string cliente, int articulosActivos,
+                                       string detallesArticulos, decimal total, decimal comision, bool estaPagado)>();
+
+            foreach (var archivo in Directory.GetFiles(carpetaSeleccionada, "*.xlsx"))
             {
-                foreach (var worksheet in workbook.Worksheets)
+                try
                 {
-                    string nombreHoja = worksheet.Name.ToLower();
-                    var clienteCell = worksheet.Cell("B1");
-                    
-                    string cliente = !clienteCell.IsEmpty() 
-                        ? clienteCell.GetString().ToLower() 
-                        : nombreHoja;
-
-                    if (cliente.Contains(textoBusqueda))
+                    using (var workbook = new XLWorkbook(new FileStream(archivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)))
                     {
-                        var articulosActivos = 0;
-                        var total = 0.0M;
-                        var detallesArticulos = new List<string>();
-                        bool estaPagado = false;
-
-                        // Verificar si está pagado (celda con texto "PAGADO")
-                        try 
+                        foreach (var worksheet in workbook.Worksheets)
                         {
-                            for (int r = 13; r <= 20; r++)
+                            string nombreHoja = worksheet.Name.ToLower();
+                            var clienteCell = worksheet.Cell("B1");
+
+                            string cliente = !clienteCell.IsEmpty()
+                                ? clienteCell.GetString().ToLower()
+                                : nombreHoja;
+
+                            if (cliente.Contains(textoBusqueda))
                             {
-                                for (int c = 1; c <= 10; c++)
+                                var articulosActivos = 0;
+                                var total = 0.0M;
+                                var detallesArticulos = new List<string>();
+                                bool estaPagado = false;
+
+                                // Verificar si está pagado - primero buscar en la celda específica F3
+                                try
                                 {
-                                    var cell = worksheet.Cell(r, c);
-                                    if (!cell.IsEmpty())
+                                    var pagadoCell = worksheet.Cell("F3");
+                                    if (!pagadoCell.IsEmpty())
                                     {
-                                        string valor = cell.GetString().ToUpper();
-                                        if (valor.Contains("PAGADO"))
+                                        string estadoPago = pagadoCell.GetString().ToUpper();
+                                        if (estadoPago.Contains("PAGADO") && !estadoPago.Contains("NO PAGADO"))
                                         {
                                             estaPagado = true;
-                                            break;
                                         }
                                     }
                                 }
-                                if (estaPagado) break;
-                            }
-                        }
-                        catch {}
+                                catch { }
 
-                        var fila = 3;  // Empezar después de los encabezados
-                        while (!worksheet.Cell($"B{fila}").IsEmpty())
-                        {
-                            try
-                            {
-                                var estadoCell = worksheet.Cell($"E{fila}");
-                                if (!estadoCell.IsEmpty())
+                                // Si no encontramos en F3, buscar en todas las celdas F
+                                if (!estaPagado)
                                 {
-                                    string estadoStr = estadoCell.GetString().ToLower();
-                                    bool estaSeleccionado = !estadoStr.Contains("falso") && 
-                                                          !estadoStr.Contains("false") &&
-                                                          estadoStr != "0" &&
-                                                          !string.IsNullOrEmpty(estadoStr);
-
-                                    if (estaSeleccionado)
+                                    try
                                     {
-                                        articulosActivos++;
-                                        
-                                        var precioCell = worksheet.Cell($"F{fila}");
-                                        if (!precioCell.IsEmpty())
+                                        for (int r = 2; r <= 20; r++)
                                         {
-                                            try
+                                            var cell = worksheet.Cell(r, 6); // Columna F (índice 6)
+                                            if (!cell.IsEmpty())
                                             {
-                                                // Intenta obtener el valor como número primero
-                                                if (precioCell.Value.IsNumber)
+                                                string valor = cell.GetString().ToUpper();
+                                                if (valor.Contains("PAGADO") && !valor.Contains("NO PAGADO"))
                                                 {
-                                                    total += (decimal)precioCell.Value.GetNumber();
+                                                    estaPagado = true;
+                                                    break;
                                                 }
-                                                else
+                                            }
+                                        }
+                                    }
+                                    catch { }
+                                }
+
+                                // Si aún no encontramos, buscar en cualquier parte de la hoja
+                                if (!estaPagado)
+                                {
+                                    try
+                                    {
+                                        for (int r = 1; r <= 20; r++)
+                                        {
+                                            for (int c = 1; c <= 10; c++)
+                                            {
+                                                var cell = worksheet.Cell(r, c);
+                                                if (!cell.IsEmpty())
                                                 {
-                                                    // Si no es número, intenta parsear el string
-                                                    string precioStr = precioCell.GetString()
-                                                        .Replace("$", "")
-                                                        .Replace(",", ".")
-                                                        .Trim();
-                                                    
-                                                    if (decimal.TryParse(precioStr, out decimal precio))
+                                                    string valor = cell.GetString().ToUpper();
+                                                    if (valor.Contains("PAGADO") && !valor.Contains("NO PAGADO"))
                                                     {
-                                                        total += precio;
+                                                        estaPagado = true;
+                                                        break;
                                                     }
                                                 }
                                             }
-                                            catch
+                                            if (estaPagado) break;
+                                        }
+                                    }
+                                    catch { }
+                                }
+
+                                var fila = 3;  // Empezar después de los encabezados
+                                while (!worksheet.Cell($"B{fila}").IsEmpty())
+                                {
+                                    try
+                                    {
+                                        var estadoCell = worksheet.Cell($"E{fila}");
+                                        if (!estadoCell.IsEmpty())
+                                        {
+                                            string estadoStr = estadoCell.GetString().ToLower();
+                                            bool estaSeleccionado = !estadoStr.Contains("falso") &&
+                                                                  !estadoStr.Contains("false") &&
+                                                                  estadoStr != "0" &&
+                                                                  !string.IsNullOrEmpty(estadoStr);
+
+                                            if (estaSeleccionado)
                                             {
-                                                // Si falla la conversión, intenta un último método
-                                                try
+                                                articulosActivos++;
+
+                                                var precioCell = worksheet.Cell($"F{fila}");
+                                                if (!precioCell.IsEmpty())
                                                 {
-                                                    total += (decimal)precioCell.GetDouble();
+                                                    try
+                                                    {
+                                                        // Intenta obtener el valor como número primero
+                                                        if (precioCell.Value.IsNumber)
+                                                        {
+                                                            total += (decimal)precioCell.Value.GetNumber();
+                                                        }
+                                                        else
+                                                        {
+                                                            // Si no es número, intenta parsear el string
+                                                            string precioStr = precioCell.GetString()
+                                                                .Replace("$", "")
+                                                                .Replace(",", ".")
+                                                                .Trim();
+
+                                                            if (decimal.TryParse(precioStr, out decimal precio))
+                                                            {
+                                                                total += precio;
+                                                            }
+                                                        }
+                                                    }
+                                                    catch
+                                                    {
+                                                        // Si falla la conversión, intenta un último método
+                                                        try
+                                                        {
+                                                            total += (decimal)precioCell.GetDouble();
+                                                        }
+                                                        catch
+                                                        {
+                                                            // Si todo falla, ignora este precio
+                                                        }
+                                                    }
                                                 }
-                                                catch
+
+                                                var articuloCell = worksheet.Cell($"D{fila}");
+                                                if (!articuloCell.IsEmpty())
                                                 {
-                                                    // Si todo falla, ignora este precio
+                                                    detallesArticulos.Add(articuloCell.GetString());
                                                 }
                                             }
                                         }
-
-                                        var articuloCell = worksheet.Cell($"D{fila}");
-                                        if (!articuloCell.IsEmpty())
-                                        {
-                                            detallesArticulos.Add(articuloCell.GetString());
-                                        }
                                     }
+                                    catch { }
+                                    fila++;
                                 }
+
+                                decimal comision = articulosActivos * 0.50M;
+                                string nombreArchivo = Path.GetFileNameWithoutExtension(archivo);
+                                string detallesStr = string.Join(", ", detallesArticulos);
+
+                                // Guardar resultados para ordenar después
+                                resultados.Add((nombreArchivo, cliente, articulosActivos, detallesStr, total, comision, estaPagado));
                             }
-                            catch {}
-                            fila++;
                         }
-
-                        decimal comision = articulosActivos * 0.50M;
-                        string nombreArchivo = Path.GetFileNameWithoutExtension(archivo);
-                        string detallesStr = string.Join(", ", detallesArticulos);
-
-                        // Guardar resultados para ordenar después
-                        resultados.Add((nombreArchivo, cliente, articulosActivos, detallesStr, total, comision, estaPagado));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Solo mostramos el error si no está relacionado con imágenes
+                    if (!ex.Message.Contains("Picture names"))
+                    {
+                        MessageBox.Show(
+                            $"Error al leer el archivo {Path.GetFileName(archivo)}: {ex.Message}",
+                            "Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
                     }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            // Solo mostramos el error si no está relacionado con imágenes
-            if (!ex.Message.Contains("Picture names"))
+
+            // Ordenar resultados por número de archivo
+            var resultadosOrdenados = resultados
+                .OrderBy(r => ObtenerNumeroArchivo(r.nombreCompleto))
+                .ToList();
+
+            // Añadir resultados ordenados al DataGridView
+            foreach (var resultado in resultadosOrdenados)
+            {
+                int rowIndex = dgv.Rows.Add(
+                    resultado.nombreCompleto,
+                    resultado.cliente,
+                    $"{resultado.articulosActivos} artículos: {resultado.detallesArticulos}",
+                    $"${resultado.total:N2} (Com: ${resultado.comision:N2})",
+                    resultado.estaPagado ? "PAGADO" : "PENDIENTE",
+                    "Abrir"
+                );
+
+                // Colorear la celda de estado usando el índice en lugar del nombre
+                dgv.Rows[rowIndex].Cells[4].Style.ForeColor = resultado.estaPagado ?
+                    Color.Green : Color.Red;
+            }
+
+            if (dgv.Rows.Count == 0)
             {
                 MessageBox.Show(
-                    $"Error al leer el archivo {Path.GetFileName(archivo)}: {ex.Message}",
-                    "Error",
+                    $"No se encontraron resultados para '{textoBusqueda}'",
+                    "Sin resultados",
                     MessageBoxButtons.OK,
-                    MessageBoxIcon.Error
+                    MessageBoxIcon.Information
                 );
             }
         }
-    }
 
-    // Ordenar resultados por número de archivo
-    var resultadosOrdenados = resultados
-        .OrderBy(r => ObtenerNumeroArchivo(r.nombreCompleto))
-        .ToList();
-
-    // Añadir resultados ordenados al DataGridView
-    foreach (var resultado in resultadosOrdenados)
-    {
-        dgv.Rows.Add(
-            resultado.nombreCompleto,
-            resultado.cliente,
-            $"{resultado.articulosActivos} artículos: {resultado.detallesArticulos}",
-            $"${resultado.total:N2} (Com: ${resultado.comision:N2})",
-            resultado.estaPagado ? "PAGADO" : "PENDIENTE",
-            "Abrir"
-        );
-    }
-
-    if (dgv.Rows.Count == 0)
-    {
-        MessageBox.Show(
-            $"No se encontraron resultados para '{textoBusqueda}'", 
-            "Sin resultados", 
-            MessageBoxButtons.OK, 
-            MessageBoxIcon.Information
-        );
-    }
-}
-
-// Función para extraer el número de archivo del formato "(N) fecha"
-private int ObtenerNumeroArchivo(string nombreArchivo)
-{
-    try
-    {
-        // Buscar un patrón como "(1)" o "(10)" al principio del nombre
-        var match = System.Text.RegularExpressions.Regex.Match(nombreArchivo, @"^\((\d+)\)");
-        if (match.Success && match.Groups.Count > 1)
+        // Función para extraer el número de archivo del formato "(N) fecha"
+        private int ObtenerNumeroArchivo(string nombreArchivo)
         {
-            return int.Parse(match.Groups[1].Value);
+            try
+            {
+                // Buscar un patrón como "(1)" o "(10)" al principio del nombre
+                var match = System.Text.RegularExpressions.Regex.Match(nombreArchivo, @"^\((\d+)\)");
+                if (match.Success && match.Groups.Count > 1)
+                {
+                    return int.Parse(match.Groups[1].Value);
+                }
+            }
+            catch { }
+
+            // Si no se puede extraer, devolver un valor alto para que aparezca al final
+            return 9999;
         }
-    }
-    catch {}
-    
-    // Si no se puede extraer, devolver un valor alto para que aparezca al final
-    return 9999;
-}
 
-// Método para configurar las columnas del DataGridView
-private void ConfigurarDataGridView()
-{
-    var dgvResultados = Controls.Find("dgvResultados", true).FirstOrDefault() as DataGridView;
-    if (dgvResultados == null) return;
+        // Método para configurar las columnas del DataGridView
+        private void ConfigurarDataGridView()
+        {
+            var dgvResultados = Controls.Find("dgvResultados", true).FirstOrDefault() as DataGridView;
+            if (dgvResultados == null) return;
 
-    dgvResultados.Columns.Clear();
-    dgvResultados.Columns.AddRange(new DataGridViewColumn[]
-    {
+            dgvResultados.Columns.Clear();
+            dgvResultados.Columns.AddRange(new DataGridViewColumn[]
+            {
         new DataGridViewTextBoxColumn { Name = "Archivo", HeaderText = "Fecha (Archivo)", Width = 100 },
         new DataGridViewTextBoxColumn { Name = "Cliente", HeaderText = "Cliente", Width = 150 },
         new DataGridViewTextBoxColumn { Name = "Articulos", HeaderText = "Artículos", Width = 200 },
         new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Total", Width = 100 },
         new DataGridViewTextBoxColumn { Name = "Estado", HeaderText = "Estado", Width = 80 },
         new DataGridViewLinkColumn { Name = "Abrir", HeaderText = "Abrir Excel", Width = 80 }
-    });
-}
+            });
+        }
 
         private void DgvResultados_CellClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -349,7 +395,7 @@ private void ConfigurarDataGridView()
                 if (string.IsNullOrEmpty(nombreArchivo)) return;
 
                 string rutaCompleta = Path.Combine(carpetaSeleccionada, nombreArchivo + ".xlsx");
-                
+
                 try
                 {
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
