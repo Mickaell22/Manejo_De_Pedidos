@@ -23,3 +23,5 @@ C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\obj\Debug\net8.0-
 C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\obj\Debug\net8.0-windows\BuscadorExcel.pdb
 C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\obj\Debug\net8.0-windows\BuscadorExcel.genruntimeconfig.cache
 C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\obj\Debug\net8.0-windows\ref\BuscadorExcel.dll
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\obj\Debug\net8.0-windows\BuscadorExcel.Form1.resources
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\obj\Debug\net8.0-windows\BuscadorExcel.csproj.GenerateResource.cache

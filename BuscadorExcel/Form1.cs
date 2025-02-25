@@ -46,7 +46,7 @@ namespace BuscadorExcel
                 Size = new Size(400, 30),
                 ReadOnly = true,
                 Name = "txtRuta",
-                Text = carpetaSeleccionada  // Añade esta línea
+                Text = carpetaSeleccionada
             };
 
             // TextBox para búsqueda
@@ -57,6 +57,94 @@ namespace BuscadorExcel
                 PlaceholderText = "Buscar...",
                 Name = "txtBuscar"
             };
+
+            // Añadir checkboxes para filtrar por estado de pago
+            var chkPagado = new CheckBox
+            {
+                Text = "Pagados",
+                Location = new Point(330, 50),
+                AutoSize = true,
+                Name = "chkPagado"
+            };
+
+            var chkPendiente = new CheckBox
+            {
+                Text = "Pendientes",
+                Location = new Point(420, 50),
+                AutoSize = true,
+                Name = "chkPendiente",
+                Checked = true // Por defecto, mostrar pendientes
+            };
+
+            var chkOcultarFechas = new CheckBox
+            {
+                Text = "Ocultar fechas como cliente",
+                Location = new Point(530, 50),
+                AutoSize = true,
+                Name = "chkOcultarFechas",
+                Checked = true // Por defecto, ocultar fechas
+            };
+
+            var chkSoloFechas = new CheckBox
+            {
+                Text = "Solo mostrar fechas como cliente",
+                Location = new Point(530, 75), // Posición debajo del otro checkbox
+                AutoSize = true,
+                Name = "chkSoloFechas",
+                Checked = false // Por defecto, no activado
+            };
+
+            // Evento para que los checkboxes sean mutuamente excluyentes
+            chkPagado.CheckedChanged += (s, e) =>
+            {
+                if (chkPagado.Checked && chkPendiente.Checked)
+                    chkPendiente.Checked = false;
+            };
+
+            chkPendiente.CheckedChanged += (s, e) =>
+            {
+                if (chkPendiente.Checked && chkPagado.Checked)
+                    chkPagado.Checked = false;
+            };
+
+            chkOcultarFechas.CheckedChanged += (s, e) =>
+            {
+                if (chkOcultarFechas.Checked && chkSoloFechas.Checked)
+                    chkSoloFechas.Checked = false;
+            };
+
+            chkSoloFechas.CheckedChanged += (s, e) =>
+            {
+                if (chkSoloFechas.Checked && chkOcultarFechas.Checked)
+                    chkOcultarFechas.Checked = false;
+            };
+
+
+            chkPagado.CheckedChanged += (s, e) => RealizarBusqueda();
+            chkPendiente.CheckedChanged += (s, e) => RealizarBusqueda();
+            chkOcultarFechas.CheckedChanged += (s, e) => RealizarBusqueda();
+            chkSoloFechas.CheckedChanged += (s, e) => RealizarBusqueda();
+
+            chkOcultarFechas.CheckedChanged += (s, e) =>
+            {
+                if (chkOcultarFechas.Checked && chkSoloFechas.Checked)
+                {
+                    chkSoloFechas.Checked = false;
+                    // No necesitamos llamar a RealizarBusqueda() aquí porque el evento
+                    // CheckedChanged de chkSoloFechas ya lo hará
+                }
+            };
+
+            chkSoloFechas.CheckedChanged += (s, e) =>
+            {
+                if (chkSoloFechas.Checked && chkOcultarFechas.Checked)
+                {
+                    chkOcultarFechas.Checked = false;
+                    // No necesitamos llamar a RealizarBusqueda() aquí porque el evento
+                    // CheckedChanged de chkOcultarFechas ya lo hará
+                }
+            };
+
 
             // Botón buscar
             var btnBuscar = new Button
@@ -95,6 +183,10 @@ namespace BuscadorExcel
             panelBusqueda.Controls.AddRange(new Control[] { btnCarpeta, txtRuta, txtBuscar, btnBuscar });
             this.Controls.Add(dgvResultados);
             this.Controls.Add(panelBusqueda);
+            panelBusqueda.Controls.AddRange(new Control[] {
+    btnCarpeta, txtRuta, txtBuscar, btnBuscar,
+    chkPagado, chkPendiente, chkOcultarFechas, chkSoloFechas
+});
         }
 
         private void BtnCarpeta_Click(object sender, EventArgs e)
@@ -111,6 +203,39 @@ namespace BuscadorExcel
             }
         }
 
+
+        private void RealizarBusqueda()
+        {
+            if (string.IsNullOrEmpty(carpetaSeleccionada)) return;
+
+            var txtBuscar = Controls.Find("txtBuscar", true).FirstOrDefault() as TextBox;
+            var dgvResultados = Controls.Find("dgvResultados", true).FirstOrDefault() as DataGridView;
+            var chkPagado = Controls.Find("chkPagado", true).FirstOrDefault() as CheckBox;
+            var chkPendiente = Controls.Find("chkPendiente", true).FirstOrDefault() as CheckBox;
+            var chkOcultarFechas = Controls.Find("chkOcultarFechas", true).FirstOrDefault() as CheckBox;
+            var chkSoloFechas = Controls.Find("chkSoloFechas", true).FirstOrDefault() as CheckBox;
+
+            if (txtBuscar == null || dgvResultados == null ||
+                chkPagado == null || chkPendiente == null ||
+                chkOcultarFechas == null || chkSoloFechas == null)
+                return;
+
+            // Verificar que al menos un filtro de estado esté seleccionado
+            if (!chkPagado.Checked && !chkPendiente.Checked)
+            {
+                // No mostrar mensajes aquí para evitar spam
+                // Solo establecer un estado predeterminado
+                chkPendiente.Checked = true;
+            }
+
+            BuscarEnArchivos(
+                txtBuscar.Text.ToLower(),
+                dgvResultados,
+                chkPagado.Checked,
+                chkPendiente.Checked,
+                chkOcultarFechas.Checked,
+                chkSoloFechas.Checked);
+        }
         private void BtnBuscar_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(carpetaSeleccionada))
@@ -121,14 +246,35 @@ namespace BuscadorExcel
 
             var txtBuscar = Controls.Find("txtBuscar", true).FirstOrDefault() as TextBox;
             var dgvResultados = Controls.Find("dgvResultados", true).FirstOrDefault() as DataGridView;
+            var chkPagado = Controls.Find("chkPagado", true).FirstOrDefault() as CheckBox;
+            var chkPendiente = Controls.Find("chkPendiente", true).FirstOrDefault() as CheckBox;
+            var chkOcultarFechas = Controls.Find("chkOcultarFechas", true).FirstOrDefault() as CheckBox;
+            var chkSoloFechas = Controls.Find("chkSoloFechas", true).FirstOrDefault() as CheckBox;
 
-            if (txtBuscar != null && dgvResultados != null)
+            if (txtBuscar != null && dgvResultados != null &&
+                chkPagado != null && chkPendiente != null &&
+                chkOcultarFechas != null && chkSoloFechas != null)
             {
-                BuscarEnArchivos(txtBuscar.Text.ToLower(), dgvResultados);
-            }
-        }
+                // Si no hay ningún checkbox seleccionado para el estado, mostrar un mensaje
+                if (!chkPagado.Checked && !chkPendiente.Checked)
+                {
+                    MessageBox.Show("Por favor, seleccione al menos un estado (Pagado o Pendiente)",
+                        "Filtro requerido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
 
-        private void BuscarEnArchivos(string textoBusqueda, DataGridView dgv)
+                BuscarEnArchivos(
+                    txtBuscar.Text.ToLower(),
+                    dgvResultados,
+                    chkPagado.Checked,
+                    chkPendiente.Checked,
+                    chkOcultarFechas.Checked,
+                    chkSoloFechas.Checked);
+            }
+            RealizarBusqueda();
+        }
+        private void BuscarEnArchivos(string textoBusqueda, DataGridView dgv, bool mostrarPagados,
+                             bool mostrarPendientes, bool ocultarFechas, bool soloFechas)
         {
             dgv.Rows.Clear();
             if (!Directory.Exists(carpetaSeleccionada)) return;
@@ -323,6 +469,21 @@ namespace BuscadorExcel
             // Añadir resultados ordenados al DataGridView
             foreach (var resultado in resultadosOrdenados)
             {
+                // Aplicar filtro por estado de pago
+                if ((resultado.estaPagado && !mostrarPagados) ||
+                    (!resultado.estaPagado && !mostrarPendientes))
+                {
+                    continue; // Saltar este resultado si no cumple con el filtro
+                }
+
+                bool esFechaCliente = EsFormatoFecha(resultado.cliente);
+
+                // Aplicar filtros de fecha
+                if ((ocultarFechas && esFechaCliente) || (soloFechas && !esFechaCliente))
+                {
+                    continue; // Saltar según los filtros de fecha
+                }
+
                 int rowIndex = dgv.Rows.Add(
                     resultado.nombreCompleto,
                     resultado.cliente,
@@ -332,10 +493,11 @@ namespace BuscadorExcel
                     "Abrir"
                 );
 
-                // Colorear la celda de estado usando el índice en lugar del nombre
+                // Colorear la celda de estado
                 dgv.Rows[rowIndex].Cells[4].Style.ForeColor = resultado.estaPagado ?
                     Color.Green : Color.Red;
             }
+
 
             if (dgv.Rows.Count == 0)
             {
@@ -364,6 +526,15 @@ namespace BuscadorExcel
 
             // Si no se puede extraer, devolver un valor alto para que aparezca al final
             return 9999;
+        }
+
+        // Función para determinar si un string tiene formato de fecha
+        private bool EsFormatoFecha(string texto)
+        {
+            // Verificar si contiene formatos de fecha comunes
+            return texto.Contains("/20") || // Busca patrones como "10/11/2024"
+                   texto.Contains("0:00:00") || // Busca horas como "0:00:00"
+                   DateTime.TryParse(texto, out _); // Intenta parsear como fecha
         }
 
         // Método para configurar las columnas del DataGridView
