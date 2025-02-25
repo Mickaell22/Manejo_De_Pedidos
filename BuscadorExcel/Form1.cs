@@ -126,10 +126,14 @@ namespace BuscadorExcel
             }
         }
 
-        private void BuscarEnArchivos(string textoBusqueda, DataGridView dgv)
+private void BuscarEnArchivos(string textoBusqueda, DataGridView dgv)
 {
     dgv.Rows.Clear();
     if (!Directory.Exists(carpetaSeleccionada)) return;
+
+    // Lista para almacenar todos los resultados antes de ordenarlos
+    var resultados = new List<(string nombreCompleto, string cliente, int articulosActivos, 
+                               string detallesArticulos, decimal total, decimal comision, bool estaPagado)>();
 
     foreach (var archivo in Directory.GetFiles(carpetaSeleccionada, "*.xlsx"))
     {
@@ -151,13 +155,37 @@ namespace BuscadorExcel
                         var articulosActivos = 0;
                         var total = 0.0M;
                         var detallesArticulos = new List<string>();
+                        bool estaPagado = false;
 
-                        var row = 3;  // Empezar después de los encabezados
-                        while (!worksheet.Cell($"B{row}").IsEmpty())
+                        // Verificar si está pagado (celda con texto "PAGADO")
+                        try 
+                        {
+                            for (int r = 13; r <= 20; r++)
+                            {
+                                for (int c = 1; c <= 10; c++)
+                                {
+                                    var cell = worksheet.Cell(r, c);
+                                    if (!cell.IsEmpty())
+                                    {
+                                        string valor = cell.GetString().ToUpper();
+                                        if (valor.Contains("PAGADO"))
+                                        {
+                                            estaPagado = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (estaPagado) break;
+                            }
+                        }
+                        catch {}
+
+                        var fila = 3;  // Empezar después de los encabezados
+                        while (!worksheet.Cell($"B{fila}").IsEmpty())
                         {
                             try
                             {
-                                var estadoCell = worksheet.Cell($"E{row}");
+                                var estadoCell = worksheet.Cell($"E{fila}");
                                 if (!estadoCell.IsEmpty())
                                 {
                                     string estadoStr = estadoCell.GetString().ToLower();
@@ -170,46 +198,45 @@ namespace BuscadorExcel
                                     {
                                         articulosActivos++;
                                         
-                                        var precioCell = worksheet.Cell($"F{row}");
+                                        var precioCell = worksheet.Cell($"F{fila}");
                                         if (!precioCell.IsEmpty())
                                         {
                                             try
-{
-    // Intenta obtener el valor como número primero
-    if (precioCell.Value.IsNumber)
-    {
-        total += (decimal)precioCell.Value.GetNumber();
-    }
-    else
-    {
-        // Si no es número, intenta parsear el string
-        string precioStr = precioCell.GetString()
-            .Replace("$", "")
-            .Replace(",", ".")
-            .Trim();
+                                            {
+                                                // Intenta obtener el valor como número primero
+                                                if (precioCell.Value.IsNumber)
+                                                {
+                                                    total += (decimal)precioCell.Value.GetNumber();
+                                                }
+                                                else
+                                                {
+                                                    // Si no es número, intenta parsear el string
+                                                    string precioStr = precioCell.GetString()
+                                                        .Replace("$", "")
+                                                        .Replace(",", ".")
+                                                        .Trim();
                                                     
-        if (decimal.TryParse(precioStr, out decimal precio))
-        {
-            total += precio;
-        }
-    }
-}
-catch
-{
-    // Si falla la conversión, intenta un último método
-    try
-    {
-        total += (decimal)precioCell.GetDouble();
-    }
-    catch
-    {
-        // Si todo falla, ignora este precio
-        Console.WriteLine($"No se pudo leer el precio en la fila {row}");
-    }
-}
+                                                    if (decimal.TryParse(precioStr, out decimal precio))
+                                                    {
+                                                        total += precio;
+                                                    }
+                                                }
+                                            }
+                                            catch
+                                            {
+                                                // Si falla la conversión, intenta un último método
+                                                try
+                                                {
+                                                    total += (decimal)precioCell.GetDouble();
+                                                }
+                                                catch
+                                                {
+                                                    // Si todo falla, ignora este precio
+                                                }
+                                            }
                                         }
 
-                                        var articuloCell = worksheet.Cell($"D{row}");
+                                        var articuloCell = worksheet.Cell($"D{fila}");
                                         if (!articuloCell.IsEmpty())
                                         {
                                             detallesArticulos.Add(articuloCell.GetString());
@@ -217,27 +244,16 @@ catch
                                     }
                                 }
                             }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine($"Error en fila {row}: {ex.Message}");
-                            }
-                            row++;
+                            catch {}
+                            fila++;
                         }
 
                         decimal comision = articulosActivos * 0.50M;
-                        decimal totalConComision = total + comision;
-
                         string nombreArchivo = Path.GetFileNameWithoutExtension(archivo);
-                        string articulosStr = detallesArticulos.Count > 0 ? 
-                            string.Join(", ", detallesArticulos) : "";
+                        string detallesStr = string.Join(", ", detallesArticulos);
 
-                        dgv.Rows.Add(
-                            nombreArchivo,
-                            cliente,
-                            $"{articulosActivos} artículos: {articulosStr}",
-                            $"${total:N2} (Com: ${comision:N2})",
-                            "Abrir"
-                        );
+                        // Guardar resultados para ordenar después
+                        resultados.Add((nombreArchivo, cliente, articulosActivos, detallesStr, total, comision, estaPagado));
                     }
                 }
             }
@@ -254,9 +270,25 @@ catch
                     MessageBoxIcon.Error
                 );
             }
-            // Si es un error de imágenes, lo ignoramos y continuamos
-            continue;
         }
+    }
+
+    // Ordenar resultados por número de archivo
+    var resultadosOrdenados = resultados
+        .OrderBy(r => ObtenerNumeroArchivo(r.nombreCompleto))
+        .ToList();
+
+    // Añadir resultados ordenados al DataGridView
+    foreach (var resultado in resultadosOrdenados)
+    {
+        dgv.Rows.Add(
+            resultado.nombreCompleto,
+            resultado.cliente,
+            $"{resultado.articulosActivos} artículos: {resultado.detallesArticulos}",
+            $"${resultado.total:N2} (Com: ${resultado.comision:N2})",
+            resultado.estaPagado ? "PAGADO" : "PENDIENTE",
+            "Abrir"
+        );
     }
 
     if (dgv.Rows.Count == 0)
@@ -268,6 +300,42 @@ catch
             MessageBoxIcon.Information
         );
     }
+}
+
+// Función para extraer el número de archivo del formato "(N) fecha"
+private int ObtenerNumeroArchivo(string nombreArchivo)
+{
+    try
+    {
+        // Buscar un patrón como "(1)" o "(10)" al principio del nombre
+        var match = System.Text.RegularExpressions.Regex.Match(nombreArchivo, @"^\((\d+)\)");
+        if (match.Success && match.Groups.Count > 1)
+        {
+            return int.Parse(match.Groups[1].Value);
+        }
+    }
+    catch {}
+    
+    // Si no se puede extraer, devolver un valor alto para que aparezca al final
+    return 9999;
+}
+
+// Método para configurar las columnas del DataGridView
+private void ConfigurarDataGridView()
+{
+    var dgvResultados = Controls.Find("dgvResultados", true).FirstOrDefault() as DataGridView;
+    if (dgvResultados == null) return;
+
+    dgvResultados.Columns.Clear();
+    dgvResultados.Columns.AddRange(new DataGridViewColumn[]
+    {
+        new DataGridViewTextBoxColumn { Name = "Archivo", HeaderText = "Fecha (Archivo)", Width = 100 },
+        new DataGridViewTextBoxColumn { Name = "Cliente", HeaderText = "Cliente", Width = 150 },
+        new DataGridViewTextBoxColumn { Name = "Articulos", HeaderText = "Artículos", Width = 200 },
+        new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Total", Width = 100 },
+        new DataGridViewTextBoxColumn { Name = "Estado", HeaderText = "Estado", Width = 80 },
+        new DataGridViewLinkColumn { Name = "Abrir", HeaderText = "Abrir Excel", Width = 80 }
+    });
 }
 
         private void DgvResultados_CellClick(object sender, DataGridViewCellEventArgs e)
