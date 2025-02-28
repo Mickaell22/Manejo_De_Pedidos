@@ -1,0 +1,13 @@
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\BuscadorExcel.exe
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\BuscadorExcel.dll
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\BuscadorExcel.deps.json
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\BuscadorExcel.runtimeconfig.json
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\BuscadorExcel.pdb
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\ClosedXML.dll
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\ClosedXML.Parser.dll
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\DocumentFormat.OpenXml.dll
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\DocumentFormat.OpenXml.Framework.dll
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\ExcelNumberFormat.dll
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\RBush.dll
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\SixLabors.Fonts.dll
+C:\Users\ASUS\Documents\GitHub\Manejo_De_Pedidos\BuscadorExcel\bin\Release\net8.0-windows\publish\System.IO.Packaging.dll
