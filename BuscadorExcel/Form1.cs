@@ -242,13 +242,7 @@ namespace BuscadorExcel
                 chkPagado != null && chkPendiente != null &&
                 chkOcultarFechas != null && chkSoloFechas != null)
             {
-                // Si no hay ningún checkbox seleccionado para el estado, mostrar un mensaje
-                if (!chkPagado.Checked && !chkPendiente.Checked)
-                {
-                    MessageBox.Show("Por favor, seleccione al menos un estado (Pagado o Pendiente)",
-                        "Filtro requerido", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
+                // Eliminar la validación que requería al menos un checkbox seleccionado
 
                 BuscarEnArchivos(
                     txtBuscar.Text.ToLower(),
@@ -258,13 +252,15 @@ namespace BuscadorExcel
                     chkOcultarFechas.Checked,
                     chkSoloFechas.Checked);
             }
-            RealizarBusqueda();
         }
         private void BuscarEnArchivos(string textoBusqueda, DataGridView dgv, bool mostrarPagados,
-                             bool mostrarPendientes, bool ocultarFechas, bool soloFechas)
+                     bool mostrarPendientes, bool ocultarFechas, bool soloFechas)
         {
             dgv.Rows.Clear();
             if (!Directory.Exists(carpetaSeleccionada)) return;
+
+            // Determinar si se deben mostrar todos (cuando ninguno está seleccionado)
+            bool mostrarTodos = !mostrarPagados && !mostrarPendientes;
 
             // Lista para almacenar todos los resultados antes de ordenarlos
             var resultados = new List<(string nombreCompleto, string cliente, int articulosActivos,
@@ -456,9 +452,9 @@ namespace BuscadorExcel
             // Añadir resultados ordenados al DataGridView
             foreach (var resultado in resultadosOrdenados)
             {
-                // Aplicar filtro por estado de pago
-                if ((resultado.estaPagado && !mostrarPagados) ||
-                    (!resultado.estaPagado && !mostrarPendientes))
+                // Aplicar filtro por estado de pago - nueva lógica
+                if (!mostrarTodos && ((resultado.estaPagado && !mostrarPagados) ||
+                    (!resultado.estaPagado && !mostrarPendientes)))
                 {
                     continue; // Saltar este resultado si no cumple con el filtro
                 }
@@ -484,7 +480,6 @@ namespace BuscadorExcel
                 dgv.Rows[rowIndex].Cells[4].Style.ForeColor = resultado.estaPagado ?
                     Color.Green : Color.Red;
             }
-
 
             if (dgv.Rows.Count == 0)
             {
