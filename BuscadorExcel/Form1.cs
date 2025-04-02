@@ -73,7 +73,7 @@ namespace BuscadorExcel
                 Location = new Point(420, 50),
                 AutoSize = true,
                 Name = "chkPendiente",
-                Checked = true // Por defecto, mostrar pendientes
+                Checked = false // Por defecto, mostrar pendientes
             };
 
             var chkOcultarFechas = new CheckBox
@@ -92,19 +92,6 @@ namespace BuscadorExcel
                 AutoSize = true,
                 Name = "chkSoloFechas",
                 Checked = false // Por defecto, no activado
-            };
-
-            // Evento para que los checkboxes sean mutuamente excluyentes
-            chkPagado.CheckedChanged += (s, e) =>
-            {
-                if (chkPagado.Checked && chkPendiente.Checked)
-                    chkPendiente.Checked = false;
-            };
-
-            chkPendiente.CheckedChanged += (s, e) =>
-            {
-                if (chkPendiente.Checked && chkPagado.Checked)
-                    chkPagado.Checked = false;
             };
 
             chkOcultarFechas.CheckedChanged += (s, e) =>
